@@ -12,11 +12,11 @@ typedef struct {
 
 //Propriedades de cada lugar do ambiente
 typedef struct{
-    int row, col; //indice do lugar em um grid
-    bool buraco; //se tem buraco
-    bool monstro; //se tem monstro
-    bool ouro; //se tem ouro
-    sensation S; //Sensações que podem ser percebidas pelo agente
+    int row, col;
+    bool buraco;
+    bool monstro;
+    bool ouro;
+    sensation S;
 } place;
 
 //O ambiente é uma matriz de lugares (grid)

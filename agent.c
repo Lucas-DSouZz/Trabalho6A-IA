@@ -105,9 +105,9 @@ static int riskScore(agent A, int i, int j){
         if (!A.cheiro[ni][nj]) semMonstroPossivel = true;
     }
     if (semBuracoPossivel && semMonstroPossivel) return 0;
-    if (semBuracoPossivel) return A.temFlecha ? 1 : 3;   // só risco de monstro
-    if (semMonstroPossivel) return 5;                     // só risco de buraco (pior caso)
-    return A.temFlecha ? 2 : 4;                            // ambos possíveis
+    if (semBuracoPossivel) return A.temFlecha ? 1 : 3;
+    if (semMonstroPossivel) return 5;                     
+    return A.temFlecha ? 2 : 4;                            
 }
 
 static int bfsAteVizinhoDoAlvo(agent A, enviroment E, int gr, int gc, place** caminho){
@@ -226,7 +226,7 @@ int runEpisode(enviroment E, int maxMoves, bool verbose, bool* sucesso){
             }
         }
 
-        if (bestI==-1) break; // não há mais fronteira alcançável
+        if (bestI==-1) break;
 
         int passos = bfsAteVizinhoDoAlvo(A, E, bestI, bestJ, caminho);
         if (passos<=0) break;

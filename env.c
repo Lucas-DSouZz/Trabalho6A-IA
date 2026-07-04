@@ -11,9 +11,9 @@ void setSensation(place* p, place* v){
     }
 }
 
-/*------------------------------------------------------------------------------
+/*
     Funções básicas do ambiente
-------------------------------------------------------------------------------*/
+*/
 
 enviroment newEnviroment(int h, int w){
     enviroment E;
@@ -55,7 +55,7 @@ void initEnviroment(enviroment E, int numBuraco, int numMonstro){
     aqui dentro faria com que chamadas sucessivas em menos de um segundo
     gerassem exatamente a mesma sequência aleatória.
 */
-    //Inicializa buracos
+
     while (numBuraco>0){
         int i, j;
         i = rand()%E.h;
@@ -67,7 +67,7 @@ void initEnviroment(enviroment E, int numBuraco, int numMonstro){
             }
         }
     }
-    //Inicializa monstros
+
     while (numMonstro>0){
         int i, j;
         i = rand()%E.h;
@@ -79,7 +79,7 @@ void initEnviroment(enviroment E, int numBuraco, int numMonstro){
             }
         }
     }
-    //Inicializa ouro
+
     bool gold=false;
     while (!gold){
         int i, j;
@@ -97,10 +97,9 @@ void initEnviroment(enviroment E, int numBuraco, int numMonstro){
 
 void initSensations(enviroment E){
     int i, j, k, l;
-    //Itera sobre posições no grid
+
     for (i=0; i<E.h; i++)
         for (j=0; j<E.w; j++){
-            //Itera sobre vizinhos
             for (k=0; k<E.h; k++)
                 for (l=0; l<E.w; l++){
                     setSensation(&E.grid[i][j],&E.grid[k][l]);
@@ -126,9 +125,6 @@ bool isNeighbor(place p, place q){
 }
 
 place* getPlace(enviroment E, int i, int j){
-/*
-    Retorna ponteiro para place com indices i e j no grid.
-*/
     return &E.grid[i][j];
 }
 
