@@ -1,3 +1,7 @@
+//  Felipe Rovigatti Delfino
+//  Lucas de Souza Silva
+//  Mateus Carrinho Joaquim
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>

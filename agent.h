@@ -1,3 +1,7 @@
+//  Felipe Rovigatti Delfino
+//  Lucas de Souza Silva
+//  Mateus Carrinho Joaquim
+
 #include "env.h"
 
 #ifndef AGENT_H
