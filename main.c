@@ -1,109 +1,278 @@
+//  ================================
 //  Felipe Rovigatti Delfino
 //  Lucas de Souza Silva
 //  Mateus Carrinho Joaquim
+//  ================================
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <math.h>
+#include <string.h>
 #include <time.h>
-#include "agent.h"
+#include <math.h>
+
 #include "env.h"
+#include "agent.h"
 
-#define NUM_EXECUCOES 15
+void mapamental(Agente* ag, Ambiente* am) {
+    FILE* ff = fopen("caminho.txt", "a");
 
-typedef struct {
-    int h, w;
-    int numBuraco, numMonstro;
-} configuracaoSala;
+    fprintf(ff, "\n=== SCORE: %d | POS: (%d,%d) ===\n", 
+           ag->score, ag->linha, ag->coluna);
+    fprintf(ff, "Status: Flecha: %s | Ouro coletado: %s\n", 
+           ag->flecha ? "SIM" : "NAO", ag->ouro ? "SIM" : "NAO");
+    
+    for (int c = 0; c < am->largura; c++) fprintf(ff,"+---");
+    fprintf(ff,"+\n");
 
-static void demonstracao(void){
-    printf("=== Demonstracao de uma execucao autonoma (sala 5x5) ===\n\n");
-    enviroment E = newEnviroment(5,5);
-    initEnviroment(E,3,1);
+    for (int l = 0; l < am->altura; l++) {
+        for (int c = 0; c < am->largura; c++) {
+            int idx = (am->largura * l) + c;
 
-    bool sucesso;
-    int score = runEpisode(E, 10*5*5, true, &sucesso);
-
-    printf("\nResultado: %s. Score final: %d\n\n",
-        sucesso ? "escapou com o ouro" : "nao conseguiu escapar a tempo", score);
-
-    delEnviroment(&E);
+            fprintf(ff,"|");
+            
+            if (ag->linha == l && ag->coluna == c) {
+                fprintf(ff," A ");
+            }
+            else if (ag->buraco[idx] == PRESENTE) {
+                fprintf(ff,"B! ");
+            }
+            else if (ag->monstro[idx] == PRESENTE) {
+                fprintf(ff,"M! ");
+            }
+            else if (ag->buraco[idx] == AUSENTE && ag->monstro[idx] == AUSENTE) {
+                fprintf(ff," . ");
+            }
+            else if (ag->buraco[idx] == SUSPEITO && ag->monstro[idx] == SUSPEITO){
+                fprintf(ff," 2?");
+            }
+            else if (ag->buraco[idx] == SUSPEITO) {
+                fprintf(ff,"b? ");
+            } 
+            else if (ag->monstro[idx] == SUSPEITO) {
+                fprintf(ff,"m? ");
+            }
+            else if (ag->monstro[idx] == MORTO) {
+                fprintf(ff, "xx ");
+            }
+            else {
+                fprintf(ff," ? ");
+            }
+        }
+        fprintf(ff,"|\n");
+        
+        for (int c = 0; c < am->largura; c++) fprintf(ff,"+---");
+        fprintf(ff,"+\n");
+    }
+    
+    fprintf(ff,"Pistas locais -> Brisa: %s | Cheiro: %s\n",
+           am->tabuleiro[ag->linha * am->largura + ag->coluna].vento ? "SIM" : "NAO",
+           am->tabuleiro[ag->linha * am->largura + ag->coluna].cheiro ? "SIM" : "NAO");
+    fprintf(ff,"=============================================\n");
 }
 
-int main(){
-    // Semente única para todo o programa: initEnviroment não deve mais
-    // chamar srand() sozinha, senão execuções consecutivas na mesma
-    // fração de segundo gerariam salas idênticas.
-    srand((unsigned int)time(NULL));
+void rodar_experimento(FILE* f, int altura, int largura, int buracos, int monstros, int testes){
+    int vitorias = 0;
+    int mortesBuraco = 0;
+    int mortesMonstro = 0;
+    int travado = 0;
 
-    demonstracao();
+    double scoreAcumulado = 0;
+    double quadradoScoreAcumulado = 0;
 
-    configuracaoSala configs[] = {
-        {4, 4, 1, 1},
-        {5, 5, 1, 1},
-        {6, 6, 3, 1},
-        {7, 7, 5, 2},
-        {8, 8, 7, 3},
-    };
-    int numConfigs = sizeof(configs)/sizeof(configs[0]);
-    int c, r;
+    double* historico = malloc(testes * sizeof(double));
+    int maxTurnos = altura * largura * 10;
 
-    FILE* csv = fopen("resultados.csv", "w");
-    if (csv) fprintf(csv, "altura,largura,buracos,monstros,execucao,score,sucesso\n");
+    for (int i = 0; i < testes; i++) {
+        Ambiente am;
 
-    printf("=== Avaliacao do agente em diferentes tamanhos de sala ===\n\n");
-    printf("%-8s %-9s %-10s %-11s %-10s %-10s %-10s\n",
-        "Sala", "Buracos", "Monstros", "Execucoes", "Media", "DesvPad", "Sucesso%");
+        int tentativaMapa = 0;
+        int maxMapa = 10000;
+        while (tentativaMapa < maxMapa) {
+            am = cria_ambiente(altura, largura);
+            inicializa_ambiente(&am, buracos, monstros);
 
-    for (c=0; c<numConfigs; c++){
-        int h = configs[c].h, w = configs[c].w;
-        int nb = configs[c].numBuraco, nm = configs[c].numMonstro;
-        int maxMoves = 10*h*w;
+            int lOuro = -1;
+            int cOuro = -1;
+            int tamanho = largura * altura;
 
-        int scores[NUM_EXECUCOES];
-        int sucessos = 0;
-
-        for (r=0; r<NUM_EXECUCOES; r++){
-            enviroment E = newEnviroment(h,w);
-            initEnviroment(E, nb, nm);
-
-            bool sucesso;
-            int score = runEpisode(E, maxMoves, false, &sucesso);
-            scores[r] = score;
-            if (sucesso) sucessos++;
-
-            if (csv){
-                fprintf(csv, "%d,%d,%d,%d,%d,%d,%d\n",
-                    h, w, nb, nm, r, score, sucesso ? 1 : 0);
+            for (int i = 0; i < tamanho; i++) {
+                if (am.tabuleiro[i].ouro == 1) {
+                    lOuro = i / largura;
+                    cOuro = i % largura;
+                    break;
+                }
             }
 
-            delEnviroment(&E);
+            if (solucionavel(&am, altura, largura, lOuro, cOuro))
+                break;
+
+            remove_ambiente(&am);
+            tentativaMapa++;
         }
 
-        double soma = 0;
-        for (r=0; r<NUM_EXECUCOES; r++) soma += scores[r];
-        double media = soma/NUM_EXECUCOES;
+        if (tentativaMapa == maxMapa)
+            continue;
 
-        double somaSqDiff = 0;
-        for (r=0; r<NUM_EXECUCOES; r++){
-            double diff = scores[r]-media;
-            somaSqDiff += diff*diff;
+        Agente ag = cria_agente(&am, buracos, monstros);
+        observar(&ag);
+        inferir(&ag);
+        
+        int turnos = 0;
+        char resultado[20] = "TRAVOU";
+
+        while (ag.vivo && turnos < maxTurnos) {
+            turnos++;
+
+            if (ag.ouro && ag.linha == am.altura - 1 && ag.coluna == am.largura - 1) {
+                vitorias++;
+                ag.score += 1000;
+                strcpy(resultado, "VITORIA");
+                break;
+            }
+
+            bool agiu = decidir_movimentar(&ag, &am, false);
+            if (!agiu) {
+                travado++;
+                break;
+            }
         }
-        double desvio = sqrt(somaSqDiff/(NUM_EXECUCOES-1));
 
-        char salaStr[16];
-        snprintf(salaStr, sizeof(salaStr), "%dx%d", h, w);
+        if (!ag.vivo && turnos <= 2) {
+            remove_agente(&ag);
+            remove_ambiente(&am);
+            i--;
+            continue;
+        } 
 
-        printf("%-8s %-9d %-10d %-11d %-10.2f %-10.2f %-10.1f\n",
-            salaStr, nb, nm, NUM_EXECUCOES, media, desvio,
-            100.0*sucessos/NUM_EXECUCOES);
+        if (!ag.vivo) {
+            if (ag.posicao->buraco) {
+                mortesBuraco++;
+                strcpy(resultado, "BURACO");
+            } else if (ag.posicao->monstro) {
+                mortesMonstro++;
+                strcpy(resultado, "MONSTRO");
+            }
+        }
+
+        scoreAcumulado += ag.score;
+        historico[i] = (double)ag.score;
+
+        remove_agente(&ag);
+        remove_ambiente(&am);
     }
 
-    if (csv){
-        fclose(csv);
-        printf("\nResultados detalhados de cada execucao salvos em resultados.csv\n");
+    double txVitoria = (vitorias / (float)testes) * 100;
+    double txBuraco = (mortesBuraco/ (float)testes) * 100;
+    double txMonstro = (mortesMonstro / (float)testes) * 100;
+    double txTravado = (travado / (float)testes) * 100;
+    double mediaScore = (scoreAcumulado / (float)testes);
+    double somaVariancia = 0;
+    for (int i = 0; i < testes; i++) {
+        somaVariancia += pow(historico[i] - mediaScore, 2);
     }
+    double desvio = sqrt(somaVariancia / (testes - 1));
 
-    return 0;
+    fprintf(f, "%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
+            altura, buracos, monstros, txVitoria, txBuraco, txMonstro, txTravado, mediaScore, desvio);
+
+    free(historico);
+}
+
+int main() {
+    srand(time(NULL));
+
+
+    printf("[1] Individual \nou [2] Multiplo?\n");
+    
+    int opcao;
+    scanf(" %d", &opcao);
+    switch (opcao) {
+        case 1:
+            remove("caminho.txt");
+            printf("\nCaminho salvo em 'caminho.txt'!\n");
+
+            Ambiente am;
+
+            int tentativaMapa = 0;
+            int maxMapa = 10000;
+            while (tentativaMapa < maxMapa) {
+                am = cria_ambiente(6, 6);
+                inicializa_ambiente(&am, 3, 4);
+
+                int lOuro = -1;
+                int cOuro = -1;
+                int tamanho = 6 * 6;
+
+                for (int i = 0; i < tamanho; i++) {
+                    if (am.tabuleiro[i].ouro == 1) {
+                        lOuro = i / 6;
+                        cOuro = i % 6;
+                        break;
+                    }
+                }
+
+                if (solucionavel(&am, 6, 6, lOuro, cOuro))
+                    break;
+
+                remove_ambiente(&am);
+                tentativaMapa++;
+            }
+
+            if (tentativaMapa == maxMapa)
+                return 0;
+
+            imprime_ambiente(&am, 1);
+
+            Agente ag = cria_agente(&am, 3, 4);
+            observar(&ag);
+            inferir(&ag);
+            
+            int turnos = 0;
+            while (ag.vivo && turnos < 1000) {
+                mapamental(&ag, &am);
+
+                if (ag.ouro && ag.linha == am.altura - 1 && ag.coluna == am.largura - 1) {
+                    ag.score += 1000;
+                    break;
+                }
+
+                bool agiu = decidir_movimentar(&ag, &am, false);
+                if (!agiu) {
+                    return 0;
+                }
+            }
+
+            remove_agente(&ag);
+            remove_ambiente(&am);
+
+            return 0;
+        case 2:
+             FILE *csv = fopen("results/dungeon.csv", "w");
+
+            fprintf(csv, "dimensao,buracos,monstros,taxa_vitoria,morte_buraco,morte_monstro,travamento,score_medio,desvio_padrao\n");
+
+            int numTestes = 1000;
+            int tamanhos[] = {4, 5, 6, 8, 10};
+            int qtdTamanhos = 5;
+
+            printf("Iniciando bateria de experimentos...\n");
+
+            for (int t = 0; t < qtdTamanhos; t++) {
+                int dim = tamanhos[t];
+                int maxPerigos = (((dim * dim) - 2) * 25) / 100; 
+
+                printf("Processando salas %dx%d (Max perigos: %d)...\n", dim, dim, maxPerigos);
+
+                for (int b = 1; b <= maxPerigos; b++) {
+                    for (int m = 1; m <= maxPerigos; m++) {
+                        rodar_experimento(csv, dim, dim, b, m, numTestes);
+                    }
+                }
+            }
+
+            fclose(csv);
+            printf("Bateria concluida! Arquivo 'results/dungeon.csv' gerado com sucesso.\n");
+            return 0;
+    }
 }
